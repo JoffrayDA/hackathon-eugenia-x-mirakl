@@ -23,3 +23,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Local dev tooling
+.claude/
+_bmad/
