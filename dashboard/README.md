@@ -1,18 +1,24 @@
-# Dashboard Marchand
+# Dashboard marchand
 
-Interface de pilotage SAV en temps réel.
+Interface de pilotage SAV en temps reel.
 
-## Stack
-- Next.js 14 + TypeScript + Tailwind CSS
-- Connexion SSE vers n8n pour le flux live
+## Source de donnees
 
-## Vues
-- **Flux Live** — timeline des actions agents en temps réel
-- **File SAV** — tous les tickets avec statut
-- **Validations** — remboursements en attente d'approbation
-- **Détail Ticket** — audit trail complet + reasoning des agents
+Le dashboard se connecte au backend FastAPI :
+
+- SSE sur `GET /stream`
+- tickets sur `GET /tickets`
+- validations sur `GET /validations`
+
+## Vues attendues
+
+- Flux live
+- File SAV
+- Validations humaines
+- Detail ticket / audit trail
 
 ## Lancement
+
 ```bash
 npm install
 cp ../.env.example .env.local
