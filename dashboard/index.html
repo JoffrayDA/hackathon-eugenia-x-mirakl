@@ -180,7 +180,7 @@ const Sidebar = ({page, setPage, tweaks}) => {
         </div>
       </div>
       {/* Nav */}
-      <nav style={{padding:'10px 10px',flex:1}}>
+      <nav style={{padding:'10px 10px',flex:1,display:'flex',flexDirection:'column'}}>
         {nav.map(n => {
           const active = page===n.id;
           return (
@@ -198,25 +198,10 @@ const Sidebar = ({page, setPage, tweaks}) => {
         })}
       </nav>
       {/* Bottom */}
-      <div style={{padding:'12px 10px',borderTop:'1px solid rgba(255,255,255,.06)'}}>
+      <div style={{padding:'12px 10px',borderTop:'1px solid rgba(255,255,255,.06)',marginTop:'auto'}}>
         <button onClick={()=>setPage('settings')} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:8,border:'none',cursor:'pointer',background:page==='settings'?'rgba(59,130,246,.15)':'transparent',color:'#64748b',fontSize:13,fontFamily:'DM Sans'}}>
           <Icon name="settings" size={15} color="#64748b"/>
           Paramètres
-        </button>
-        <button
-          onClick={()=>{
-            try {
-              localStorage.removeItem('mirakl_sav_role');
-              localStorage.removeItem('mirakl_sav_email');
-            } catch (_) {}
-            window.location.href = 'login.html';
-          }}
-          style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:8,border:'none',cursor:'pointer',background:'transparent',color:'#ef4444',fontSize:13,fontFamily:'DM Sans',marginTop:2}}
-          onMouseEnter={(e)=>e.currentTarget.style.background='rgba(239,68,68,.1)'}
-          onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}
-        >
-          <Icon name="logout" size={15} color="#ef4444"/>
-          Déconnexion
         </button>
         <div style={{marginTop:12,padding:'10px 12px',background:'#1e293b',borderRadius:8}}>
           <div style={{fontSize:10,color:'#475569',fontWeight:600,marginBottom:4}}>TICKETS RÉSOLUS / 7J</div>
@@ -1503,7 +1488,8 @@ const LoginPage = ({onLogin}) => {
 // ── APP ───────────────────────────────────────────────────────────────────────
 const App = () => {
   const saved = (() => { try { return JSON.parse(localStorage.getItem('mirakl-sav-state')||'{}') } catch{return{}} })();
-  const [user, setUser]           = useState(saved.user||null);
+  const defaultUser = USERS.find(u => u.role==='vendeur') || USERS[0];
+  const [user, setUser]           = useState(saved.user||defaultUser);
   const [page, setPage]           = useState(saved.page||'home');
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [tweaks, setTweaks]       = useState({...TWEAK_DEFAULTS,...(saved.tweaks||{})});
@@ -1522,19 +1508,7 @@ const App = () => {
     window.parent.postMessage({type:'__edit_mode_available'},'*');
   },[]);
 
-  const handleLogin  = (u) => { setUser(u); setPage(u.role==='marketplace'?'marketplace':'home'); };
-  const handleLogout = ()  => { setUser(null); setPage('home'); localStorage.removeItem('mirakl-sav-state'); };
-
   const navigateToTicket = (t) => { setSelectedTicket(t); setPage('ticket-detail'); };
-
-  // Listener logout depuis iframe vendeur (doit être AVANT tout early return)
-  useEffect(()=>{
-    const handler = (e) => { if (e.data?.type === 'logout') handleLogout(); };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  },[]);
-
-  if(!user) return <LoginPage onLogin={handleLogin}/>;
 
   // Badges dynamiques depuis les données live
   const openTicketCount = TICKETS.filter(t => t.status === 'open' || t.status === 'pending').length;
@@ -1576,7 +1550,7 @@ const App = () => {
           <span style={{fontSize:10,color:user.role==='marketplace'?'#a78bfa':'#93c5fd',fontWeight:600}}>{user.label}</span>
         </div>
       </div>
-      <nav style={{padding:'10px 10px',flex:1}}>
+      <nav style={{padding:'10px 10px',flex:1,display:'flex',flexDirection:'column'}}>
         {nav.map(n=>{
           const active = page===n.id;
           return (
@@ -1588,11 +1562,7 @@ const App = () => {
           );
         })}
       </nav>
-      <div style={{padding:'12px 10px',borderTop:'1px solid rgba(255,255,255,.06)'}}>
-        <button onClick={handleLogout} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:8,border:'none',cursor:'pointer',background:'rgba(239,68,68,.08)',color:'#f87171',fontSize:12,fontFamily:'DM Sans',marginBottom:8,fontWeight:500}}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Déconnexion
-        </button>
+      <div style={{padding:'12px 10px',borderTop:'1px solid rgba(255,255,255,.06)',marginTop:'auto'}}>
         {user.role==='vendeur' && (
           <div style={{padding:'10px 12px',background:'#1e293b',borderRadius:8}}>
             <div style={{fontSize:10,color:'#475569',fontWeight:600,marginBottom:4}}>TICKETS RÉSOLUS / 7J</div>

@@ -1,279 +1,439 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Connexion — Mirakl SAV</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; font-family: 'DM Sans', sans-serif; }
-  body {
-    background: linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%);
-    color: #0f172a;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-  }
-  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connexion — Mirakl SAV</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #0f1629;
+      color: #e2e8f0;
+      overflow: hidden;
+    }
 
-  .card {
-    width: 100%;
-    max-width: 440px;
-    background: #fff;
-    border-radius: 20px;
-    box-shadow: 0 20px 60px -20px rgba(15, 23, 42, .25), 0 4px 12px -4px rgba(15, 23, 42, .08);
-    padding: 40px 36px;
-    animation: fadeIn .4s ease-out;
-  }
+    .bg-dot {
+      position: fixed;
+      pointer-events: none;
+      border-radius: 999px;
+      filter: blur(2px);
+    }
+    .bg-dot.top {
+      top: -220px;
+      right: -220px;
+      width: 620px;
+      height: 620px;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.16) 0%, transparent 70%);
+    }
+    .bg-dot.bottom {
+      left: -180px;
+      bottom: -180px;
+      width: 460px;
+      height: 460px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.14) 0%, transparent 70%);
+    }
 
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 28px;
-  }
-  .brand-logo {
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    display: flex; align-items: center; justify-content: center;
-    color: #fff; font-weight: 700; font-size: 16px;
-  }
-  .brand-name {
-    font-size: 15px; font-weight: 600; color: #0f172a;
-  }
-  .brand-sub {
-    font-size: 12px; color: #64748b; font-weight: 500;
-  }
+    .wrap {
+      height: 100%;
+      display: flex;
+      position: relative;
+      z-index: 1;
+    }
 
-  h1 {
-    font-size: 24px; font-weight: 700; color: #0f172a; margin-bottom: 6px;
-  }
-  .subtitle {
-    font-size: 14px; color: #64748b; margin-bottom: 28px;
-  }
+    .left {
+      flex: 1;
+      padding: 60px 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 520px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 56px;
+    }
+    .logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: #3b82f6;
+      color: #fff;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+    }
 
-  .role-label {
-    display: block;
-    font-size: 12px; font-weight: 600;
-    color: #475569;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    margin-bottom: 10px;
-  }
+    h1 {
+      font-size: 38px;
+      line-height: 1.18;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+    h1 span {
+      background: linear-gradient(90deg, #818cf8, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent;
+    }
+    .intro {
+      max-width: 520px;
+      color: #64748b;
+      font-size: 14px;
+      line-height: 1.7;
+      margin-bottom: 34px;
+    }
 
-  .role-toggle {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 22px;
-  }
-  .role-btn {
-    border: 1.5px solid #e2e8f0;
-    background: #f8fafc;
-    border-radius: 12px;
-    padding: 14px 12px;
-    cursor: pointer;
-    text-align: left;
-    transition: all .15s ease;
-    display: flex; flex-direction: column; gap: 4px;
-  }
-  .role-btn:hover { border-color: #cbd5e1; background: #fff; }
-  .role-btn.active {
-    border-color: #3b82f6;
-    background: #eff6ff;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
-  }
-  .role-btn .role-title {
-    font-size: 14px; font-weight: 600; color: #0f172a;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .role-btn.active .role-title { color: #1d4ed8; }
-  .role-btn .role-desc {
-    font-size: 12px; color: #64748b; line-height: 1.4;
-  }
-  .role-ico {
-    width: 18px; height: 18px; color: #64748b;
-  }
-  .role-btn.active .role-ico { color: #3b82f6; }
+    .quick-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 520px;
+    }
+    .quick {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      color: inherit;
+      padding: 14px 16px;
+      text-align: left;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      cursor: pointer;
+      transition: all .16s ease;
+    }
+    .quick:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(139, 92, 246, 0.35);
+    }
+    .quick-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 9px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .quick-avatar.vendeur { background: rgba(59, 130, 246, 0.16); color: #93c5fd; }
+    .quick-avatar.mp { background: rgba(139, 92, 246, 0.16); color: #c4b5fd; }
+    .quick-main { flex: 1; }
+    .quick-title { font-size: 12px; font-weight: 700; color: #e2e8f0; }
+    .quick-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .quick-sub code { font-family: 'DM Mono', monospace; color: #94a3b8; }
+    .quick-arrow { color: #60a5fa; font-weight: 700; font-size: 12px; }
 
-  .field { margin-bottom: 16px; }
-  .field label {
-    display: block;
-    font-size: 12px; font-weight: 600;
-    color: #475569;
-    margin-bottom: 6px;
-  }
-  .field input {
-    width: 100%;
-    padding: 12px 14px;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
-    font-family: inherit;
-    font-size: 14px;
-    color: #0f172a;
-    background: #fff;
-    transition: border-color .15s ease, box-shadow .15s ease;
-  }
-  .field input:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
-  }
+    .right {
+      width: 460px;
+      padding: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      width: 100%;
+      background: #fff;
+      border-radius: 20px;
+      padding: 36px 40px;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
+      color: #0f172a;
+    }
+    .card-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .card-sub { font-size: 13px; color: #94a3b8; margin-bottom: 24px; }
 
-  .row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 6px 0 22px;
-    font-size: 13px;
-  }
-  .row label { color: #475569; display: flex; align-items: center; gap: 6px; cursor: pointer; }
-  .row a { color: #3b82f6; text-decoration: none; font-weight: 500; }
-  .row a:hover { text-decoration: underline; }
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+    .field input {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      outline: none;
+      transition: border-color .16s ease;
+    }
+    .field input:focus { border-color: #3b82f6; }
 
-  .submit {
-    width: 100%;
-    padding: 13px;
-    border: none;
-    border-radius: 10px;
-    background: #0f172a;
-    color: #fff;
-    font-family: inherit;
-    font-size: 14px; font-weight: 600;
-    cursor: pointer;
-    transition: background .15s ease, transform .05s ease;
-  }
-  .submit:hover { background: #1e293b; }
-  .submit:active { transform: translateY(1px); }
-  .submit:disabled { background: #94a3b8; cursor: not-allowed; }
+    .pwd-wrap { position: relative; }
+    .pwd-toggle {
+      position: absolute;
+      right: 10px;
+      top: 35px;
+      border: none;
+      background: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 4px;
+    }
 
-  .footer {
-    margin-top: 20px;
-    text-align: center;
-    font-size: 13px;
-    color: #64748b;
-  }
-  .footer a { color: #3b82f6; text-decoration: none; font-weight: 500; }
-  .footer a:hover { text-decoration: underline; }
+    .error {
+      display: none;
+      margin-top: 6px;
+      font-size: 11px;
+      color: #ef4444;
+    }
+    .error.show { display: block; }
 
-  .error {
-    margin-bottom: 16px;
-    padding: 10px 12px;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 8px;
-    color: #b91c1c;
-    font-size: 13px;
-    display: none;
-  }
-  .error.show { display: block; }
-</style>
+    .submit {
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      background: #3b82f6;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .16s ease, opacity .16s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .submit:disabled {
+      background: #e2e8f0;
+      color: #94a3b8;
+      cursor: not-allowed;
+    }
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+
+    .quick-actions {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #f1f5f9;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .quick-actions .label {
+      font-size: 11px;
+      color: #94a3b8;
+      text-align: center;
+      margin-bottom: 2px;
+    }
+    .quick-btn {
+      border: 1px solid #f1f5f9;
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #475569;
+      transition: background .16s ease;
+    }
+    .quick-btn:hover { background: #f1f5f9; }
+    .quick-btn strong { font-size: 11px; font-weight: 700; }
+    .quick-btn code { font-family: 'DM Mono', monospace; color: #94a3b8; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 1080px) {
+      body { overflow: auto; }
+      .wrap { flex-direction: column; min-height: 100%; }
+      .left { min-width: auto; padding: 36px 24px 10px; }
+      .right { width: 100%; padding: 16px 24px 36px; }
+      h1 { font-size: 30px; }
+      .intro { margin-bottom: 18px; }
+    }
+  </style>
 </head>
 <body>
-  <div class="card">
-    <div class="brand">
-      <div class="brand-logo">M</div>
-      <div>
-        <div class="brand-name">Mirakl SAV</div>
-        <div class="brand-sub">Powered by Eugenia</div>
-      </div>
-    </div>
+  <div class="bg-dot top"></div>
+  <div class="bg-dot bottom"></div>
 
-    <h1>Connexion</h1>
-    <p class="subtitle">Choisissez votre espace pour continuer</p>
-
-    <span class="role-label">Je suis</span>
-    <div class="role-toggle" role="tablist">
-      <button type="button" class="role-btn active" data-role="vendeur" role="tab" aria-selected="true">
-        <span class="role-title">
-          <svg class="role-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4"/><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/></svg>
-          Vendeur
-        </span>
-        <span class="role-desc">Gérez vos tickets SAV et vos commandes</span>
-      </button>
-      <button type="button" class="role-btn" data-role="marketplace" role="tab" aria-selected="false">
-        <span class="role-title">
-          <svg class="role-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>
-          Marketplace
-        </span>
-        <span class="role-desc">Supervisez vendeurs, litiges et flux</span>
-      </button>
-    </div>
-
-    <form id="login-form" novalidate>
-      <div class="error" id="error">Email ou mot de passe invalide.</div>
-
-      <div class="field">
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" autocomplete="email" placeholder="vous@exemple.com" required />
+  <div class="wrap">
+    <section class="left">
+      <div class="brand">
+        <div class="logo">M</div>
+        <div>
+          <div class="brand-title">Mirakl SAV</div>
+          <div class="brand-sub">Plateforme de gestion SAV</div>
+        </div>
       </div>
 
-      <div class="field">
-        <label for="password">Mot de passe</label>
-        <input type="password" id="password" name="password" autocomplete="current-password" placeholder="••••••••" required />
+      <h1>Gérez votre SAV<br><span>avec l'IA.</span></h1>
+      <p class="intro">
+        Déléguez vos opérations SAV à un agent IA autonome. Répondez aux clients, gérez les retours et suivez vos performances.
+      </p>
+
+      <div class="quick-list">
+        <button class="quick" type="button" data-role="vendeur">
+          <div class="quick-avatar vendeur">F</div>
+          <div class="quick-main">
+            <div class="quick-title">Vendeur</div>
+            <div class="quick-sub">boutique@fanny.fr · <code>vendeur123</code></div>
+          </div>
+          <span class="quick-arrow">→</span>
+        </button>
+        <button class="quick" type="button" data-role="marketplace">
+          <div class="quick-avatar mp">M</div>
+          <div class="quick-main">
+            <div class="quick-title">Opérateur Marketplace</div>
+            <div class="quick-sub">ops@mirakl.com · <code>market123</code></div>
+          </div>
+          <span class="quick-arrow">→</span>
+        </button>
       </div>
+    </section>
 
-      <div class="row">
-        <label><input type="checkbox" id="remember" /> Se souvenir de moi</label>
-        <a href="#">Mot de passe oublié ?</a>
+    <aside class="right">
+      <div class="card">
+        <div class="card-title">Connexion</div>
+        <div class="card-sub">Accédez à votre espace</div>
+
+        <form id="login-form" novalidate>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" type="email" placeholder="votre@email.com" autocomplete="email" required />
+          </div>
+
+          <div class="field pwd-wrap">
+            <label for="password">Mot de passe</label>
+            <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required />
+            <button class="pwd-toggle" id="pwd-toggle" type="button">👁</button>
+            <div id="error" class="error">Email ou mot de passe incorrect.</div>
+          </div>
+
+          <button id="submit" class="submit" type="submit">Se connecter →</button>
+        </form>
+
+        <div class="quick-actions">
+          <div class="label">Accès rapide (démo)</div>
+          <button type="button" class="quick-btn" data-quick="vendeur">
+            <strong>Vendeur</strong><code>boutique@fanny.fr</code>
+          </button>
+          <button type="button" class="quick-btn" data-quick="marketplace">
+            <strong>Marketplace</strong><code>ops@mirakl.com</code>
+          </button>
+        </div>
       </div>
-
-      <button type="submit" class="submit" id="submit">Se connecter</button>
-    </form>
-
-    <p class="footer">Pas encore de compte ? <a href="#">Créer un compte</a></p>
+    </aside>
   </div>
 
-<script>
-  (function () {
-    let role = 'vendeur';
-    const btns = document.querySelectorAll('.role-btn');
-    btns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        btns.forEach(b => {
-          b.classList.remove('active');
-          b.setAttribute('aria-selected', 'false');
-        });
-        btn.classList.add('active');
-        btn.setAttribute('aria-selected', 'true');
-        role = btn.dataset.role;
-      });
-    });
+  <script>
+    (function () {
+      const USERS = {
+        vendeur: { role: 'vendeur', email: 'boutique@fanny.fr', password: 'vendeur123' },
+        marketplace: { role: 'marketplace', email: 'ops@mirakl.com', password: 'market123' }
+      };
 
-    const form = document.getElementById('login-form');
-    const errorEl = document.getElementById('error');
-    const submitBtn = document.getElementById('submit');
+      const emailEl = document.getElementById('email');
+      const pwdEl = document.getElementById('password');
+      const errorEl = document.getElementById('error');
+      const formEl = document.getElementById('login-form');
+      const submitEl = document.getElementById('submit');
+      const toggleEl = document.getElementById('pwd-toggle');
+      let loading = false;
 
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      errorEl.classList.remove('show');
-
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-
-      if (!email || !password) {
-        errorEl.textContent = 'Veuillez remplir tous les champs.';
-        errorEl.classList.add('show');
-        return;
+      function pick(role) {
+        const u = USERS[role];
+        if (!u) return;
+        emailEl.value = u.email;
+        pwdEl.value = u.password;
+        errorEl.classList.remove('show');
       }
 
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Connexion…';
+      function setLoading(state) {
+        loading = state;
+        submitEl.disabled = state;
+        submitEl.innerHTML = state ? '<span class="spinner"></span> Connexion...' : 'Se connecter →';
+      }
 
-      try {
-        localStorage.setItem('mirakl_sav_role', role);
-        localStorage.setItem('mirakl_sav_email', email);
-      } catch (_) {}
+      function doLogin(user) {
+        try {
+          const savedRaw = localStorage.getItem('mirakl-sav-state');
+          const saved = savedRaw ? JSON.parse(savedRaw) : {};
+          const roleConfig = user.role === 'marketplace'
+            ? { id: 'mp', role: 'marketplace', label: 'Opérateur Marketplace', email: user.email, avatar: 'M' }
+            : { id: 'vendeur', role: 'vendeur', label: 'Vendeur', email: user.email, avatar: 'F' };
 
-      setTimeout(() => {
+          localStorage.setItem('mirakl_sav_role', user.role);
+          localStorage.setItem('mirakl_sav_email', user.email);
+          localStorage.setItem('mirakl-sav-state', JSON.stringify({
+            ...saved,
+            user: roleConfig,
+            page: user.role === 'marketplace' ? 'marketplace' : 'home'
+          }));
+        } catch (_) {}
+
         window.location.href = 'index.html';
-      }, 400);
-    });
-  })();
-</script>
+      }
+
+      document.querySelectorAll('.quick[data-role]').forEach((btn) => {
+        btn.addEventListener('click', () => pick(btn.dataset.role));
+      });
+      document.querySelectorAll('.quick-btn[data-quick]').forEach((btn) => {
+        btn.addEventListener('click', () => pick(btn.dataset.quick));
+      });
+
+      toggleEl.addEventListener('click', () => {
+        const show = pwdEl.type === 'password';
+        pwdEl.type = show ? 'text' : 'password';
+        toggleEl.textContent = show ? '🙈' : '👁';
+      });
+
+      formEl.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (loading) return;
+
+        errorEl.classList.remove('show');
+        const email = emailEl.value.trim();
+        const password = pwdEl.value;
+
+        const user = Object.values(USERS).find((u) => u.email === email && u.password === password);
+        if (!user) {
+          errorEl.classList.add('show');
+          return;
+        }
+
+        setLoading(true);
+        setTimeout(() => doLogin(user), 500);
+      });
+    })();
+  </script>
 </body>
 </html>
