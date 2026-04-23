@@ -96,6 +96,7 @@ const Icon = ({name, size=16, color='currentColor'}) => {
     eye: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
     handoff: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></svg>,
     brain: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 2A2.5 2.5 0 017 4.5v0A2.5 2.5 0 014.5 7v0A2.5 2.5 0 012 9.5v5A2.5 2.5 0 004.5 17v0A2.5 2.5 0 007 19.5v0A2.5 2.5 0 009.5 22h5a2.5 2.5 0 002.5-2.5v0a2.5 2.5 0 002.5-2.5v0a2.5 2.5 0 002.5-2.5v-5A2.5 2.5 0 0019.5 7v0A2.5 2.5 0 0017 4.5v0A2.5 2.5 0 0014.5 2z"/></svg>,
+    logout: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
   };
   return icons[name] || null;
 };
@@ -201,6 +202,21 @@ const Sidebar = ({page, setPage, tweaks}) => {
         <button onClick={()=>setPage('settings')} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:8,border:'none',cursor:'pointer',background:page==='settings'?'rgba(59,130,246,.15)':'transparent',color:'#64748b',fontSize:13,fontFamily:'DM Sans'}}>
           <Icon name="settings" size={15} color="#64748b"/>
           Paramètres
+        </button>
+        <button
+          onClick={()=>{
+            try {
+              localStorage.removeItem('mirakl_sav_role');
+              localStorage.removeItem('mirakl_sav_email');
+            } catch (_) {}
+            window.location.href = 'login.html';
+          }}
+          style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'9px 12px',borderRadius:8,border:'none',cursor:'pointer',background:'transparent',color:'#ef4444',fontSize:13,fontFamily:'DM Sans',marginTop:2}}
+          onMouseEnter={(e)=>e.currentTarget.style.background='rgba(239,68,68,.1)'}
+          onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}
+        >
+          <Icon name="logout" size={15} color="#ef4444"/>
+          Déconnexion
         </button>
         <div style={{marginTop:12,padding:'10px 12px',background:'#1e293b',borderRadius:8}}>
           <div style={{fontSize:10,color:'#475569',fontWeight:600,marginBottom:4}}>TICKETS RÉSOLUS / 7J</div>
@@ -1511,20 +1527,21 @@ const App = () => {
 
   const navigateToTicket = (t) => { setSelectedTicket(t); setPage('ticket-detail'); };
 
+  // Listener logout depuis iframe vendeur (doit être AVANT tout early return)
+  useEffect(()=>{
+    const handler = (e) => { if (e.data?.type === 'logout') handleLogout(); };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  },[]);
+
   if(!user) return <LoginPage onLogin={handleLogin}/>;
 
   // Badges dynamiques depuis les données live
   const openTicketCount = TICKETS.filter(t => t.status === 'open' || t.status === 'pending').length;
   const pendingValidations = supaData.validations.length;
 
-  // Nav selon le rôle
-  const navVendeur = [
-    {id:'home',      label:'Accueil',    icon:'home'},
-    {id:'tickets',   label:'Tickets SAV',icon:'inbox', badge: openTicketCount || undefined},
-    {id:'flux',      label:'Flux Live',  icon:'zap'},
-    {id:'validations',label:'Validations',icon:'check', badge: pendingValidations || undefined},
-    {id:'agent',     label:'Agent IA',   icon:'brain'},
-  ];
+  // Nav selon le rôle — vendeur: iframe backend, pas d'items
+  const navVendeur = [];
   const navMarketplace = [
     {id:'marketplace',label:'Marketplace',icon:'eye'},
   ];
@@ -1588,19 +1605,21 @@ const App = () => {
     </div>
   );
 
+  // Vendeur : iframe backend plein écran, pas de sidebar outer
+  if (user.role === 'vendeur') {
+    return (
+      <iframe
+        src="vendor-dashboard.html"
+        title="Dashboard Vendeur"
+        style={{width:'100vw',height:'100vh',border:'none',background:'#F2F8FF',display:'block'}}
+      />
+    );
+  }
+
   return (
     <div style={{display:'flex',height:'100vh',overflow:'hidden',background:'#f1f5f9'}}>
       <SidebarAdapted/>
       <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-        {user.role==='vendeur' && <>
-          {page==='home'         && <HomePage setPage={setPage} setSelectedTicket={navigateToTicket} tweaks={tweaks}/>}
-          {page==='tickets'      && <TicketsPage setPage={setPage} setSelectedTicket={navigateToTicket} tweaks={tweaks}/>}
-          {page==='ticket-detail'&& selectedTicket && <TicketDetail ticket={selectedTicket} setPage={setPage} tweaks={tweaks}/>}
-          {page==='flux'         && <FluxPage setPage={setPage} tweaks={tweaks}/>}
-          {page==='validations'  && <ValidationsPage tweaks={tweaks}/>}
-          {page==='agent'        && <AgentPage tweaks={tweaks}/>}
-          {page==='settings'     && <PlaceholderPage title="Paramètres" tweaks={tweaks}/>}
-        </>}
         {user.role==='marketplace' && page==='marketplace' && <MarketplacePage tweaks={tweaks}/>}
       </div>
       <TweaksPanel tweaks={tweaks} setTweaks={setTweaks} visible={tweaksVisible}/>
