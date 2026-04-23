@@ -1,0 +1,420 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nouveau-ticket",
+        "options": {}
+      },
+      "id": "587db42c-3f3d-41cd-9e61-69a4a6eede1e",
+      "name": "Supabase Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        3840
+      ],
+      "webhookId": "nouveau-ticket-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ticket = $input.first().json.body?.record;\nif (!ticket) return [];\nreturn { json: ticket };"
+      },
+      "id": "8c8e8ffa-36c2-4940-9c7b-ea875dc782a0",
+      "name": "Extract Ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        3840
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM orders WHERE order_ref = '{{ $json.order_ref }}';",
+        "options": {}
+      },
+      "id": "b9738b6d-441d-403b-b14d-470e06d74a77",
+      "name": "Fetch Order from DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1648,
+        3840
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "Xzx7eDe13DJH2M7V",
+          "name": "Postgres account 2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ticket = $('Extract Ticket').first().json;\nconst order = $input.first()?.json || {};\n\n// On fusionne le ticket original et les infos de la commande trouvée en BDD\nreturn { \n  json: { \n    ...ticket, \n    order_details: order \n  } \n};"
+      },
+      "id": "8234e193-7c76-4084-b520-3d85c8b6ae9d",
+      "name": "Merge Ticket & Order",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        3840
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ticket = $('Extract Ticket').first().json;\nconst aiOutput = $input.first().json;\n\n// Gère tous les formats de sortie (OpenAI, Anthropic, DUST, Simplify Output On/Off)\nconst raw = aiOutput.text \n  || aiOutput.message?.content \n  || aiOutput.agentMessage \n  || aiOutput.output?.[0]?.content?.[0]?.text \n  || aiOutput.answer \n  || aiOutput.message \n  || '{}';\n\nlet parsed;\ntry {\n  const cleanRaw = typeof raw === 'string' ? raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim() : JSON.stringify(raw);\n  parsed = JSON.parse(cleanRaw);\n} catch (e) {\n  parsed = aiOutput;\n  if (!parsed.action) {\n    return { json: { ...ticket, ticket_id: ticket.id, ai_action: 'escalate', ai_confidence: 0, final_status: 'escalated' } };\n  }\n}\n\nlet action = parsed.action || 'escalate';\nlet confidence = Number(parsed.confidence || 0);\nconst messageText = (ticket.raw_message || '').toLowerCase();\nconst refundSignals = ['rembours', 'refund', 'argent', 'money', 'débit'].some(s => messageText.includes(s));\n\nif (confidence < 65) action = 'escalate';\nif (refundSignals && action === 'auto_reply') action = 'request_validation';\n\nlet finalStatus;\nswitch (action) {\n  case 'auto_reply': finalStatus = 'resolved'; break;\n  case 'request_validation': finalStatus = 'pending'; break;\n  case 'escalate': finalStatus = 'escalated'; break;\n  default: finalStatus = 'escalated';\n}\n\nreturn {\n  json: {\n    ...ticket,\n    ticket_id: ticket.id,\n    ai_category: parsed.category || ticket.category || 'Produit',\n    ai_sub_type: parsed.sub_type || '',\n    ai_confidence: confidence,\n    ai_priority: parsed.priority || ticket.priority,\n    ai_action: action,\n    ai_customer_reply: parsed.customer_reply || '',\n    ai_merchant_summary: parsed.merchant_summary || '',\n    ai_reasoning: parsed.reasoning || '',\n    ai_validation: parsed.validation || { needed: false },\n    final_status: finalStatus\n  }\n};\n"
+      },
+      "id": "a5cb2216-daea-4abc-937c-73f06b7041b6",
+      "name": "Parse & Apply Guardrails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        3840
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tickets SET\n  status = '{{ $json.final_status }}',\n  category = '{{ $json.ai_category }}',\n  priority = '{{ $json.ai_priority }}'\nWHERE id = '{{ $json.ticket_id }}';",
+        "options": {}
+      },
+      "id": "ce48428d-6ad9-43da-9bda-cbdd088fe747",
+      "name": "Update Ticket Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2816,
+        3840
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "Xzx7eDe13DJH2M7V",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agent_actions (ticket_id, action, type, icon)\nVALUES (\n  '{{ $('Parse & Apply Guardrails').first().json.ticket_id }}',\n  'Classifié : {{ $('Parse & Apply Guardrails').first().json.ai_category }} — {{ $('Parse & Apply Guardrails').first().json.ai_sub_type }} (confiance {{ $('Parse & Apply Guardrails').first().json.ai_confidence }}%)',\n  'decision',\n  '🎯'\n);",
+        "options": {}
+      },
+      "id": "0acd054d-9b4c-4bb1-8e0d-f0b8d54767ca",
+      "name": "Log Classification",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3008,
+        3840
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "Xzx7eDe13DJH2M7V",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "is-auto-reply",
+              "leftValue": "={{ $('Parse & Apply Guardrails').first().json.ai_action }}",
+              "rightValue": "auto_reply",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0a6bbafc-006d-4992-9860-1856bec2e686",
+      "name": "Route by Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3216,
+        3840
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (ticket_id, role, is_ai, text)\nVALUES (\n  '{{ $('Parse & Apply Guardrails').first().json.ticket_id }}',\n  'agent',\n  true,\n  '{{ $('Parse & Apply Guardrails').first().json.ai_customer_reply.replace(/'/g, \"''\") }}'\n);\n\nINSERT INTO agent_actions (ticket_id, action, type, icon)\nVALUES (\n  '{{ $('Parse & Apply Guardrails').first().json.ticket_id }}',\n  'Réponse automatique envoyée au client',\n  'reply',\n  '💬'\n),\n(\n  '{{ $('Parse & Apply Guardrails').first().json.ticket_id }}',\n  'Ticket résolu automatiquement',\n  'resolved',\n  '✅'\n);",
+        "options": {}
+      },
+      "id": "6dfab574-10ef-4c83-a203-bcf1d958c5dd",
+      "name": "Auto Reply & Resolve",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3504,
+        3680
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "Xzx7eDe13DJH2M7V",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "is-validation",
+              "leftValue": "={{ $('Parse & Apply Guardrails').first().json.ai_action }}",
+              "rightValue": "request_validation",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f830a7ea-dbf0-42af-8c00-1af1bd27df9d",
+      "name": "Needs Validation?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3504,
+        3984
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO validations (ticket_id, client, marketplace, amount, type, context, agent_quote, priority, sla)\nVALUES (\n  '{{ $('Parse & Apply Guardrails').first().json.ticket_id }}',\n  '{{ $('Parse & Apply Guardrails').first().json.client }}',\n  '{{ $('Parse & Apply Guardrails').first().json.marketplace }}',\n  {{ $('Parse & Apply Guardrails').first().json.ai_validation.amount || 0 }},\n  '{{ ($('Parse & Apply Guardrails').first().json.ai_validation.type || \"Remboursement\").replace(/'/g, \"''\") }}',\n  '{{ ($('Parse & Apply Guardrails').first().json.ai_validation.context || $('Parse & Apply Guardrails').first().json.ai_merchant_summary).replace(/'/g, \"''\") }}',\n  '{{ ($('Parse & Apply Guardrails').first().json.ai_validation.agent_quote || $('Parse & Apply Guardrails').first().json.ai_reasoning).replace(/'/g, \"''\") }}',\n  '{{ $('Parse & Apply Guardrails').first().json.ai_priority }}',\n  '{{ $('Parse & Apply Guardrails').first().json.sla || \"Respecté\" }}'\n);\n\nINSERT INTO messages (ticket_id, role, is_ai, text)\nVALUES (\n  '{{ $('Parse & Apply Guardrails').first().json.ticket_id }}',\n  'agent',\n  true,\n  '{{ $('Parse & Apply Guardrails').first().json.ai_customer_reply.replace(/'/g, \"''\") }}'\n);\n\nINSERT INTO agent_actions (ticket_id, action, type, icon)\nVALUES (\n  '{{ $('Parse & Apply Guardrails').first().json.ticket_id }}',\n  '{{ ($('Parse & Apply Guardrails').first().json.ai_reasoning || \"Validation humaine requise\").replace(/'/g, \"''\") }}',\n  'escalation',\n  '🔒'\n);",
+        "options": {}
+      },
+      "id": "7d67c3c0-121e-4a3e-9027-1f4ceaf0b8c5",
+      "name": "Create Validation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3808,
+        3840
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "Xzx7eDe13DJH2M7V",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (ticket_id, role, is_ai, text)\nVALUES (\n  '{{ $('Parse & Apply Guardrails').first().json.ticket_id }}',\n  'agent',\n  true,\n  '{{ ($('Parse & Apply Guardrails').first().json.ai_customer_reply || \"Votre demande a été transférée à notre équipe spécialisée.\").replace(/'/g, \"''\") }}'\n);\n\nINSERT INTO agent_actions (ticket_id, action, type, icon)\nVALUES (\n  '{{ $('Parse & Apply Guardrails').first().json.ticket_id }}',\n  '{{ ($('Parse & Apply Guardrails').first().json.ai_reasoning || \"Escalade : confiance insuffisante ou cas complexe\").replace(/'/g, \"''\") }}',\n  'escalation',\n  '⚠️'\n);",
+        "options": {}
+      },
+      "id": "8b7bfbe1-2b87-4661-8b96-d6026d365bba",
+      "name": "Escalate to Human",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3808,
+        4144
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "Xzx7eDe13DJH2M7V",
+          "name": "Postgres account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-5-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "<settings>\nTu es Aria, l'agent SAV intelligent conçu pour soulager les vendeurs multi-marketplaces (Amazon, Fnac, Cdiscount...).\nTu analyses chaque ticket entrant avec rigueur et empathie, et tu produis une réponse structurée permettant de traiter efficacement les demandes clients.\nTu fonctionnes de manière autonome en t'appuyant sur des règles strictes, et tu sais reconnaître les cas nécessitant une intervention humaine.\n</settings>\n\n<task>\nPour chaque ticket entrant, tu dois :\n1. Classifier l'intention SAV (catégorie + sous-type)\n2. Évaluer ta confiance dans la classification (score de 0 à 100)\n3. Déterminer la priorité et l'action à mener\n4. Rédiger une réponse client professionnelle et empathique\n5. Produire une synthèse marchande si le cas implique un impact financier ou est ambigu\n\n<do>\n- Choisir la catégorie et le sous-type parmi les listes autorisées uniquement\n- Évaluer objectivement le score de confiance en fonction de la clarté du message\n- Adapter le ton de la réponse client selon l'état émotionnel détecté dans le message\n- TOUJOURS rédiger une \"customer_reply\", même si action = \"escalate\" — dans ce cas, rédiger un accusé de réception empathique indiquant que la demande est bien prise en compte et qu'un conseiller va prendre contact rapidement\n- Produire une synthèse marchande factuelle et concise (bullet points si nécessaire)\n- Remplir le bloc \"validation\" dès que l'action est \"request_validation\"\n- TOUJOURS retourner tous les champs du JSON sans exception\n- Faire la meilleure estimation possible même en cas d'incertitude\n</do>\n\n<don't>\n- Ne JAMAIS déclencher un remboursement automatique sans validation humaine\n- Ne JAMAIS choisir une catégorie ou un sous-type hors des listes autorisées\n- Ne JAMAIS omettre un champ du JSON de sortie\n- Ne JAMAIS laisser \"customer_reply\" vide, quelle que soit l'action\n- Ne JAMAIS ajouter de texte ou de markdown avant ou après le JSON\n- Ne JAMAIS retourner un JSON invalide\n- Ne pas ignorer les indices émotionnels forts dans le message client\n</don't>\n</task>\n\n<rules>\nGUARDRAILS ABSOLUS — ces règles s'appliquent avant tout autre raisonnement :\n- Si le message mentionne un remboursement → action = \"request_validation\" (sans exception)\n- Si ta confiance est < 65% → action = \"escalate\"\n- \"customer_reply\" est TOUJOURS rempli — si action = \"escalate\", rédiger un accusé de réception empathique sans promettre d'action spécifique\n- En cas de conflit entre deux règles, appliquer celle qui est la plus protectrice pour le vendeur\n</rules>\n\n<reference>\nCATÉGORIES ET SOUS-TYPES AUTORISÉS :\n- Livraison → suivi | retard | perdu | livré_non_reçu\n- Produit → défectueux | erreur_article | non_conforme\n- Remboursement → intégral | partiel\n- Échange → retour | échange_produit\n- Facturation → double_débit | erreur_montant\n- Annulation → avant_expédition | après_expédition\n\nACTIONS AUTORISÉES :\n- \"auto_reply\" → tu peux répondre directement au client (info, suivi, date estimée) et clore le ticket\n- \"request_validation\" → cas financier (remboursement, geste commercial) → synthèse pour validation par le vendeur\n- \"escalate\" → cas trop ambigu, plainte grave ou confiance < 65% → escalade humaine, mais réponse client d'accusé de réception obligatoire\n\nNIVEAUX DE PRIORITÉ :\n- critical → fraude potentielle, colis perdu, litige grave\n- high → forte insatisfaction, remboursement impliqué\n- medium → problème standard nécessitant une action\n- low → question simple, aucun risque\n</reference>\n\n<output>\nRÈGLES STRICTES :\n- Répondre UNIQUEMENT en JSON valide\n- AUCUN texte, commentaire ou markdown avant ou après le JSON\n- TOUS les champs doivent être présents\n- Les champs \"customer_reply\" et \"merchant_summary\" sont en français\n- \"customer_reply\" : TOUJOURS rempli, même si action = \"escalate\". Dans ce cas, rédiger un message d'accusé de réception empathique indiquant que la demande est bien prise en compte et qu'un conseiller va prendre contact rapidement\n- \"merchant_summary\" : ton factuel et concis (bullet points si pertinent)\n- Si \"validation.needed\" = false → les autres champs de \"validation\" valent null\n\nFORMAT DE SORTIE :\n{\n\"category\": \"string (parmi les catégories autorisées)\",\n\"sub_type\": \"string (parmi les sous-types autorisés)\",\n\"confidence\": number (0 à 100),\n\"priority\": \"critical | high | medium | low\",\n\"action\": \"auto_reply | request_validation | escalate\",\n\"customer_reply\": \"string (réponse empathique en français, TOUJOURS rempli — accusé de réception si action = escalate)\",\n\"merchant_summary\": \"string (synthèse factuelle en français)\",\n\"reasoning\": \"string (justification de la classification, de la priorité et de l'action)\",\n\"validation\": {\n\"needed\": boolean,\n\"amount\": number | null,\n\"type\": \"string | null\",\n\"context\": \"string | null\",\n\"agent_quote\": \"string | null\"\n}\n}\n</output>\n\n<exemple>\n<!-- Exemple 1 — action : request_validation (remboursement) -->\nInput :\nMessage client : \"Bonjour, mon colis est marqué livré depuis hier mais je n'ai rien reçu. Je veux être remboursé immédiatement.\"\nNuméro de commande : \"FR-88421\"\nMarketplace d'origine : \"Amazon\"\nOutput :\n{\n\"category\": \"Livraison\",\n\"sub_type\": \"livré_non_reçu\",\n\"confidence\": 92,\n\"priority\": \"critical\",\n\"action\": \"request_validation\",\n\"customer_reply\": \"Bonjour, nous avons bien reçu votre message concernant votre commande FR-88421 et nous comprenons votre inquiétude. Votre demande est en cours de traitement et nous revenons vers vous dans les plus brefs délais avec une solution. Nous nous excusons sincèrement pour la gêne occasionnée.\",\n\"merchant_summary\": \"- Commande FR-88421 (Amazon)\\n- Client affirme ne pas avoir reçu son colis malgré un statut de livraison\\n- Demande de remboursement immédiat\\n- Validation requise avant toute action financière\\n- Recommandation : vérifier preuve de livraison auprès du transporteur\",\n\"reasoning\": \"Le client conteste la réception de son colis et demande explicitement un remboursement, ce qui déclenche obligatoirement action = request_validation. Classification livré_non_reçu avec confiance élevée. Priorité critical en raison du risque financier.\",\n\"validation\": {\n\"needed\": true,\n\"amount\": null,\n\"type\": \"remboursement_intégral\",\n\"context\": \"Client non récepteur d'un colis marqué livré. Preuve de livraison à vérifier avant décision.\",\n\"agent_quote\": \"Le client déclare : 'mon colis est marqué livré depuis hier mais je n'ai rien reçu. Je veux être remboursé immédiatement.'\"\n}\n}\n\n<!-- Exemple 2 — action : escalate (plainte grave, forte charge émotionnelle) -->\nInput :\nMessage client : \"Bonjour, ma commande #8829 est arrivée cassée et c'était un cadeau pour un anniversaire CE SOIR. Je suis vraiment en colère, personne ne répond au téléphone !!\"\nNuméro de commande : \"8829\"\nMarketplace d'origine : \"\"\nOutput :\n{\n\"category\": \"Produit\",\n\"sub_type\": \"défectueux\",\n\"confidence\": 95,\n\"priority\": \"high\",\n\"action\": \"escalate\",\n\"customer_reply\": \"Bonjour, nous sommes vraiment désolés d'apprendre que votre commande est arrivée dans cet état, d'autant plus dans un contexte aussi important. Votre demande a bien été prise en compte et un conseiller va vous contacter dans les plus brefs délais pour trouver une solution adaptée à votre situation. Nous vous prions de nous excuser sincèrement pour la gêne occasionnée.\",\n\"merchant_summary\": \"- Commande 8829\\n- Article reçu cassé par le client\\n- Contexte d'urgence : cadeau pour un anniversaire ce soir\\n- Niveau d'insatisfaction très élevé : client en colère, mentionne l'absence de réponse téléphonique\\n- Aucune demande explicite de remboursement\\n- Prise en charge humaine rapide recommandée\",\n\"reasoning\": \"Produit reçu endommagé, classification défectueux avec confiance élevée. Priorité high en raison de l'urgence et du fort mécontentement. Action escalate car plainte grave avec charge émotionnelle importante. La customer_reply est un accusé de réception empathique sans promesse d'action spécifique.\",\n\"validation\": {\n\"needed\": false,\n\"amount\": null,\n\"type\": null,\n\"context\": null,\n\"agent_quote\": null\n}\n}\n</exemple>\n"
+            },
+            {
+              "content": "=<input>\nMessage client : \"\"\" {{ $json.raw_message }} \"\"\"\nInformations complémentaires (TIRÉES DE LA BDD & DES STOCKS) :\n- Numéro de commande : \"\"\" {{ $json.order_ref }} \"\"\"\n- Marketplace d'origine : \"\"\" {{ $json.marketplace }} \"\"\"\n- Produit commandé : \"\"\" {{ $json.order_details.product_name }} \"\"\"\n- Statut d'expédition : \"\"\" {{ $json.order_details.shipping_status }} \"\"\"\n- Transporteur : \"\"\" {{ $json.order_details.carrier }} \"\"\"\n- Quantité en stock actuellement : \"\"\" {{ $json.order_details.quantity_available }} unités \"\"\"\n</input>"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        2144,
+        3840
+      ],
+      "id": "8cd573e9-22f7-465f-8f24-14487cc6903c",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "LkiPmaIeYQbz74eN",
+          "name": "ANTOINE API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Supabase Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Ticket": {
+      "main": [
+        [
+          {
+            "node": "Fetch Order from DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Order from DB": {
+      "main": [
+        [
+          {
+            "node": "Merge Ticket & Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Ticket & Order": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Apply Guardrails": {
+      "main": [
+        [
+          {
+            "node": "Update Ticket Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Ticket Status": {
+      "main": [
+        [
+          {
+            "node": "Log Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Classification": {
+      "main": [
+        [
+          {
+            "node": "Route by Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Action": {
+      "main": [
+        [
+          {
+            "node": "Auto Reply & Resolve",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Needs Validation?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Validation?": {
+      "main": [
+        [
+          {
+            "node": "Create Validation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Escalate to Human",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Parse & Apply Guardrails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ac1ec4534fc39641295fdd942c0a428ea184a4828699843194478baf3be66e65"
+  }
+}
